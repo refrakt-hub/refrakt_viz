@@ -22,3 +22,13 @@ def get_viz(name: str) -> Type[Any]:
     if name not in _viz_registry:
         raise ValueError(f"Visualization component '{name}' not found in registry.")
     return _viz_registry[name] 
+
+# Ensure new visualizations are imported so they are registered
+try:
+    from refrakt_viz.supervised.per_layer_metrics import PerLayerMetricsPlot
+except ImportError:
+    pass
+try:
+    from refrakt_viz.supervised.computation_graph import ComputationGraphPlot
+except ImportError:
+    pass 

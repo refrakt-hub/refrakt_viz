@@ -8,8 +8,4 @@ class VisualizationComponent(ABC):
 
     @abstractmethod
     def save(self, path: str) -> None:
-        pass
-
-    @abstractmethod
-    def show(self) -> None:
         pass 
