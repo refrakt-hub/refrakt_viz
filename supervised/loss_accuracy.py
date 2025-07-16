@@ -35,9 +35,18 @@ class LossAccuracyPlot(VisualizationComponent):
         plt.savefig(path)
         plt.close()
 
-    def show(self) -> None:
-        self.save("/tmp/loss_acc.png")
-        img = plt.imread("/tmp/loss_acc.png")
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show() 
+    def save_with_name(self, model_name: str = "model", mode: str = "train") -> None:
+        import os
+        out_dir = f"visualizations/{model_name}"
+        os.makedirs(out_dir, exist_ok=True)
+        self.save(f"{out_dir}/loss_accuracy_{mode}.png")
+
+    def show(self, model_name: str = "model", mode: str = "train") -> None:
+        self.save_with_name(model_name, mode)
+        img_path = f"visualizations/{model_name}/loss_accuracy_{mode}.png"
+        import os
+        if os.path.exists(img_path):
+            img = plt.imread(img_path)
+            plt.imshow(img)
+            plt.axis('off')
+            plt.show() 

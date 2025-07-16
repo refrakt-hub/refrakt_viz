@@ -20,7 +20,9 @@ class ComputationGraphPlot(VisualizationComponent):
         self.last_model = model
         self.last_input = input_tensor
         self.model_name = model_name
-        self.graph_path = os.path.join(self.graph_dir, f"computation_graph_{self.model_name}.png")
+        out_dir = os.path.join(self.graph_dir, self.model_name)
+        os.makedirs(out_dir, exist_ok=True)
+        self.graph_path = os.path.join(out_dir, "computation_graph.png")
         self._generate_graph()
         self.generated = True
 
@@ -41,29 +43,31 @@ class ComputationGraphPlot(VisualizationComponent):
                 else:
                     raise ValueError("ModelOutput does not contain a tensor suitable for graph visualization.")
                 # Save to a temp path, then move/rename
-                temp_path = os.path.join(self.graph_dir, f"computation_graph_{self.model_name}")
+                out_dir = os.path.join(self.graph_dir, self.model_name)
+                os.makedirs(out_dir, exist_ok=True)
+                temp_path = os.path.join(out_dir, "computation_graph")
                 dot = make_dot(tensor_for_graph, params=dict(self.last_model.named_parameters()))
                 dot.format = "png"
                 dot.render(temp_path, cleanup=True)
                 # torchviz will save as temp_path + '.png'
                 final_path = temp_path + ".png"
-                if final_path != self.graph_path:
+                graph_path = os.path.join(out_dir, "computation_graph.png")
+                if final_path != graph_path:
                     import shutil
-                    shutil.move(final_path, self.graph_path)
-                print(f"[ComputationGraphPlot] Computation graph saved to {self.graph_path}")
+                    shutil.move(final_path, graph_path)
+                print(f"[ComputationGraphPlot] Computation graph saved to {graph_path}")
         except ImportError:
             print("[ComputationGraphPlot] torchviz not installed.")
         except Exception as e:
             print(f"[ComputationGraphPlot] Failed to generate graph: {e}")
 
     def save(self, path: str = None) -> None:
-        # Always check for the correct computation_graph_{model_name}.png file
         if not self.model_name:
             print("[ComputationGraphPlot] Model name not set; cannot determine computation graph file. Skipping save().")
             return
-        graph_path = os.path.join(self.graph_dir, f"computation_graph_{self.model_name}.png")
+        out_dir = os.path.join(self.graph_dir, self.model_name)
+        graph_path = os.path.join(out_dir, "computation_graph.png")
         if os.path.exists(graph_path):
-            # Check if the file is empty
             if os.path.getsize(graph_path) == 0:
                 print(f"[ComputationGraphPlot] Warning: Graph file {graph_path} is empty.")
             import shutil

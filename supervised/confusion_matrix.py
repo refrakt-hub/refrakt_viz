@@ -2,8 +2,8 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.metrics import confusion_matrix
-from ..registry import register_viz
-from .base import VisualizationComponent
+from refrakt_viz.registry import register_viz
+from refrakt_viz.supervised.base import VisualizationComponent
 
 @register_viz("confusion_matrix")
 class ConfusionMatrixPlot(VisualizationComponent):
@@ -28,13 +28,27 @@ class ConfusionMatrixPlot(VisualizationComponent):
         plt.ylabel("True")
         plt.title("Confusion Matrix")
         plt.colorbar(im)
+        # Add counts in each cell
+        for i in range(cm.shape[0]):
+            for j in range(cm.shape[1]):
+                ax.text(j, i, str(cm[i, j]), ha="center", va="center", color="black", fontsize=12)
         plt.tight_layout()
         plt.savefig(path)
+        print(f"[ConfusionMatrixPlot] Saved confusion matrix plot: {path}")
         plt.close()
 
-    def show(self) -> None:
-        self.save("/tmp/confmat.png")
-        img = plt.imread("/tmp/confmat.png")
-        plt.imshow(img)
-        plt.axis('off')
-        plt.show() 
+    def save_with_name(self, model_name: str = "model", mode: str = "test") -> None:
+        import os
+        out_dir = f"visualizations/{model_name}"
+        os.makedirs(out_dir, exist_ok=True)
+        self.save(f"{out_dir}/confusion_matrix.png")
+
+    def show(self, model_name: str = "model", mode: str = "test") -> None:
+        self.save_with_name(model_name, mode)
+        img_path = f"visualizations/{model_name}/confusion_matrix.png"
+        import os
+        if os.path.exists(img_path):
+            img = plt.imread(img_path)
+            plt.imshow(img)
+            plt.axis('off')
+            plt.show() 
