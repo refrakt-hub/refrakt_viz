@@ -31,4 +31,25 @@ except ImportError:
 try:
     from refrakt_viz.supervised.computation_graph import ComputationGraphPlot
 except ImportError:
+    pass
+# Register contrastive visualizations
+try:
+    from refrakt_viz.contrastive.embedding_space import EmbeddingSpacePlot
+except ImportError:
+    pass
+try:
+    from refrakt_viz.contrastive.pair_similarity import PairSimilarityPlot
+except ImportError:
+    pass
+try:
+    from refrakt_viz.contrastive.loss_curve import ContrastiveLossCurvePlot
+except ImportError:
+    pass
+try:
+    from refrakt_viz.contrastive.nearest_neighbors import NearestNeighborsPlot
+except ImportError:
+    pass
+try:
+    from refrakt_viz.contrastive.cluster_assignments import ClusterAssignmentPlot
+except ImportError:
     pass 
