@@ -53,3 +53,24 @@ try:
     from refrakt_viz.contrastive.cluster_assignments import ClusterAssignmentPlot
 except ImportError:
     pass 
+# Register generative visualizations
+try:
+    from refrakt_viz.generative.latent_space_projection import LatentSpaceProjection
+except ImportError:
+    pass
+try:
+    from refrakt_viz.generative.reconstruction_viz import ReconstructionViz
+except ImportError:
+    pass
+try:
+    from refrakt_viz.generative.sample_generation import SampleGeneration, LatentInterpolation
+except ImportError:
+    pass
+try:
+    from refrakt_viz.generative.feature_attribution import FeatureAttribution
+except ImportError:
+    pass
+try:
+    from refrakt_viz.generative.disentanglement_analysis import DisentanglementAnalysis
+except ImportError:
+    pass 
