@@ -27,3 +27,6 @@ dev = [
     "radon>=5.0.0",
     "lizard>=1.17.10"
 ] 
+
+[tool.isort]
+profile = "black" 

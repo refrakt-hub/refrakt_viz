@@ -1,106 +1,206 @@
-from refrakt_viz.generative.base import GenerativeVisualizationComponent
-from refrakt_viz.registry import register_viz
-import numpy as np
-import matplotlib.pyplot as plt
+"""
+Sample generation and latent interpolation visualizations for generative models.
+
+This module provides visualization components for generating and displaying samples from generative models, as well as visualizing latent space interpolations.
+
+Typical usage:
+    from refrakt_viz.generative import SampleGeneration, LatentInterpolation
+    viz = SampleGeneration(nrow=8, title="Samples")
+    viz.update(samples)
+    viz.save("samples.png")
+
+Classes:
+    - SampleGeneration: Visualize generated samples from a generative model.
+    - LatentInterpolation: Visualize interpolations between latent vectors.
+"""
+
+from __future__ import annotations
+
 import os
 import random
+from typing import Any, List
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from refrakt_viz.base import GenerativeVisualizationComponent
+from refrakt_viz.registry import register_viz
+from refrakt_viz.utils.sample_generation_utils import plot_sample_grid, reshape_image
+
 
 @register_viz("sample_generation")
 class SampleGeneration(GenerativeVisualizationComponent):
-    registry_name = "sample_generation"
-    def __init__(self, nrow=8, title="Sample Generation"):
-        self.nrow = nrow
-        self.title = title
-        self.samples = []
+    """
+        Visualization component for displaying generated samples from a generative model.
 
-    def update(self, samples):
+        This class accumulates batches of generated samples and provides a method to save a grid
+        of randomly selected samples to disk. Useful for monitoring generative model outputs
+    during training or evaluation.
+
+        Attributes:
+            nrow (int): Number of images per row in the sample grid.
+            title (str): Title for the visualization.
+            samples (List[np.ndarray[Any, Any]]): List of sample batches to visualize.
+    """
+
+    registry_name: str = "sample_generation"
+
+    def __init__(self, nrow: int = 8, title: str = "Sample Generation") -> None:
+        """
+        Initialize the SampleGeneration visualization.
+
+        Args:
+            nrow (int): Number of images per row in the grid.
+            title (str): Title for the visualization.
+        """
+        self.nrow: int = nrow
+        self.title: str = title
+        self.samples: List[np.ndarray[Any, Any]] = []
+
+    def update(self, *args, **kwargs) -> None:
+        """
+        Update the visualization with new data. Expects samples, title as arguments.
+        """
+        samples = kwargs.get("samples", args[0] if len(args) > 0 else None)
+        title = kwargs.get("title", args[1] if len(args) > 1 else None)
+        if samples is None:
+            raise ValueError("samples must be provided to update()")
         self.samples.append(np.array(samples))
+        if title is not None:
+            self.title = title
 
-    def update_from_batch(self, model, batch, loss, epoch):
-        # Assume model can generate samples for the batch
+    def update_from_batch(
+        self, model: Any, batch: Any, loss: float, epoch: int
+    ) -> None:
+        """
+        Generate and add samples from a model and batch.
+
+        Args:
+            model (Any): The generative model.
+            batch (Any): Input batch for sample generation.
+            loss (float): Loss value (unused).
+            epoch (int): Current epoch (unused).
+        """
         samples = model.generate_samples(batch)
         self.update(samples)
 
-    def _reshape_image(self, img):
-        # Robustly reshape flat images to 28x28 or infer square, else fallback
-        if img is None:
-            print(f"[SampleGeneration] Warning: Received None image, using zeros fallback.")
-            return np.zeros((28, 28), dtype=np.float32)
-        img = np.array(img)
-        if img.ndim == 1:
-            side = int(np.sqrt(img.size))
-            if side * side == img.size:
-                return img.reshape(side, side)
-            else:
-                print(f"[SampleGeneration] Warning: Cannot reshape flat image of size {img.size}, using zeros fallback.")
-                return np.zeros((28, 28), dtype=np.float32)
-        elif img.ndim == 2:
-            return img
-        elif img.ndim == 3 and img.shape[0] in [1, 3]:
-            # (C, H, W) -> (H, W) or (H, W, C)
-            if img.shape[0] == 1:
-                return img[0]
-            elif img.shape[0] == 3:
-                return np.transpose(img, (1, 2, 0))
-        elif img.ndim == 3 and img.shape[-1] in [1, 3]:
-            return img
-        else:
-            print(f"[SampleGeneration] Warning: Unexpected image shape {getattr(img, 'shape', None)}, using zeros fallback.")
-            return np.zeros((28, 28), dtype=np.float32)
+    def _reshape_image(self, img: Any) -> np.ndarray[Any, Any]:
+        """
+        Reshape an image for visualization (delegates to utils).
 
-    def save(self, path: str):
-        if not self.samples:
+        Args:
+            img (Any): The image to reshape.
+        Returns:
+            np.ndarray[Any, Any]: Reshaped image as np.ndarray.
+        """
+        return reshape_image(img)
+
+    def save(self, path: str) -> None:
+        """
+        Save a grid of generated samples to disk.
+
+        Args:
+            path (str): Output file path for the visualization.
+        Raises:
+            ValueError: If no samples are available to save.
+        """
+        if len(self.samples) == 0:
             print("[SampleGeneration] No samples to save.")
             return
-        # Pick a random batch
-        batch_idx = random.randint(0, len(self.samples) - 1)
-        samples = self.samples[batch_idx]
-        N = len(samples)
-        nrow = self.nrow
-        ncol = int(np.ceil(N / nrow))
-        plt.figure(figsize=(nrow * 2, ncol * 2))
-        for i in range(N):
-            plt.subplot(ncol, nrow, i + 1)
-            img = self._reshape_image(samples[i])
-            try:
-                img = np.array(img, dtype=np.float32)
-            except Exception:
-                img = np.zeros((28, 28), dtype=np.float32)
-            plt.imshow(img, cmap="gray" if img.ndim == 2 or (img.ndim == 3 and img.shape[-1] == 1) else None)
-            plt.axis("off")
-        plt.suptitle(f"{self.title} (batch {batch_idx})")
-        plt.tight_layout()
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        plt.savefig(path)
-        plt.close()
-        print(f"[SampleGeneration] Saved sample grid to {path} (batch {batch_idx})")
-        # Clear for next epoch
+        batch_idx: int = random.randint(0, len(self.samples) - 1)
+        samples: np.ndarray[Any, Any] = self.samples[batch_idx]
+        plot_sample_grid(samples, self.nrow, f"{self.title} (batch {batch_idx})", path)
         self.samples.clear()
+
 
 @register_viz("latent_interpolation")
 class LatentInterpolation(GenerativeVisualizationComponent):
-    def __init__(self, steps=8, title="Latent Interpolation"):
-        self.steps = steps
-        self.title = title
-        self.interpolations = []  # list of (model, z_start, z_end)
+    """
+    Visualization component for displaying latent space interpolations in generative models.
 
-    def update(self, model, z_start, z_end):
+    This class accumulates interpolation tasks and provides a method to save the resulting
+    interpolated images to disk. Useful for visualizing smooth transitions in the latent space
+    of generative models.
+
+    Attributes:
+        steps (int): Number of interpolation steps.
+        title (str): Title for the visualization.
+        interpolations (List[tuple[Any, np.ndarray[Any, Any], np.ndarray[Any, Any]]]):
+            List of (model, z_start, z_end) tuples for interpolation.
+    """
+
+    def __init__(self, steps: int = 8, title: str = "Latent Interpolation") -> None:
+        """
+        Initialize the LatentInterpolation visualization.
+
+        Args:
+            steps (int): Number of interpolation steps.
+            title (str): Title for the visualization.
+        """
+        self.steps: int = steps
+        self.title: str = title
+        self.interpolations: List[
+            tuple[Any, np.ndarray[Any, Any], np.ndarray[Any, Any]]
+        ] = []
+
+    def update(self, model: Any, z_start: Any, z_end: Any) -> None:
+        """
+        Add a latent interpolation task to the visualization.
+
+        Args:
+            model (Any): The generative model.
+            z_start (Any): Starting latent vector.
+            z_end (Any): Ending latent vector.
+        """
         self.interpolations.append((model, np.array(z_start), np.array(z_end)))
 
-    def update_from_batch(self, model, batch, loss, epoch):
-        # Assume batch provides z_start and z_end for interpolation
+    def update_from_batch(
+        self, model: Any, batch: Any, loss: float, epoch: int
+    ) -> None:
+        """
+        Add a latent interpolation from a model and batch.
+
+        Args:
+            model (Any): The generative model.
+            batch (Any): Input batch for interpolation.
+            loss (float): Loss value (unused).
+            epoch (int): Current epoch (unused).
+        """
         z_start, z_end = model.get_interpolation_latents(batch)
         self.update(model, z_start, z_end)
 
-    def save(self, path: str):
+    def save(self, path: str) -> None:
+        """
+        Save latent space interpolations to disk.
+
+        Args:
+            path (str): Output file path for the visualization.
+        """
         for idx, (model, z_start, z_end) in enumerate(self.interpolations):
-            zs = np.linspace(0, 1, self.steps)[:, None] * z_end + (1 - np.linspace(0, 1, self.steps)[:, None]) * z_start
-            imgs = np.array([model.decode(z[None]) if hasattr(model, 'decode') else model.generate(z[None]) for z in zs])
+            zs = (
+                np.linspace(0, 1, self.steps)[:, None] * z_end
+                + (1 - np.linspace(0, 1, self.steps)[:, None]) * z_start
+            )
+            imgs = np.array(
+                [
+                    (
+                        model.decode(z[None])
+                        if hasattr(model, "decode")
+                        else model.generate(z[None])
+                    )
+                    for z in zs
+                ]
+            )
             imgs = imgs.squeeze()
             plt.figure(figsize=(self.steps * 2, 2))
             for i in range(self.steps):
                 plt.subplot(1, self.steps, i + 1)
-                plt.imshow(imgs[i], cmap="gray" if imgs.shape[-1] == 1 or len(imgs.shape) == 3 else None)
+                plt.imshow(
+                    imgs[i],
+                    cmap=(
+                        "gray" if imgs.shape[-1] == 1 or len(imgs.shape) == 3 else None
+                    ),
+                )
                 plt.axis("off")
             plt.suptitle(self.title)
             plt.tight_layout()
@@ -108,4 +208,4 @@ class LatentInterpolation(GenerativeVisualizationComponent):
             os.makedirs(os.path.dirname(out_path), exist_ok=True)
             plt.savefig(out_path)
             plt.close()
-            print(f"[LatentInterpolation] Saved latent interpolation to {out_path}") 
+            print(f"[LatentInterpolation] Saved latent interpolation to {out_path}")
