@@ -84,7 +84,12 @@ class ClusterAssignmentPlot(ContrastiveVisualizationComponent):
         n_clusters = 10
         kmeans = KMeans(n_clusters=n_clusters, n_init=1, random_state=0)
         assignments = kmeans.fit_predict(embeddings)
-        labels = getattr(batch, "labels", None)
+        # Extract labels from contrastive batch structure [view1, view2, labels]
+        labels = batch[2] if isinstance(batch, (tuple, list)) and len(batch) > 2 else None
+        if labels is not None and hasattr(labels, "cpu"):
+            labels = labels.cpu().numpy()
+        elif labels is not None and hasattr(labels, "numpy"):
+            labels = labels.numpy()
         if labels is None:
             labels = [0] * len(assignments)
         self.update(assignments, labels)

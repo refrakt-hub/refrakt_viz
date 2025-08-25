@@ -97,8 +97,9 @@ class EmbeddingSpacePlot(ContrastiveVisualizationComponent):
                 model.encode(batch[0].to(next(model.parameters()).device)).cpu().numpy()
             )
         labels = None
-        if isinstance(batch, (tuple, list)) and len(batch) > 1:
-            labels = batch[1]
+        # For contrastive datasets, batch structure is [view1, view2, labels]
+        if isinstance(batch, (tuple, list)) and len(batch) > 2:
+            labels = batch[2]  # Third element contains the actual labels
             if hasattr(labels, "cpu"):
                 labels = labels.cpu().numpy()
             elif hasattr(labels, "numpy"):
@@ -128,7 +129,10 @@ class EmbeddingSpacePlot(ContrastiveVisualizationComponent):
                 )
             reducer = umap.UMAP(n_components=2, random_state=42)
         elif self.method == "tsne":
-            reducer = TSNE(n_components=2, random_state=42)
+            # Adjust perplexity based on number of samples
+            n_samples = self.embeddings.shape[0]
+            perplexity = min(30.0, max(5.0, n_samples - 1))
+            reducer = TSNE(n_components=2, random_state=42, perplexity=perplexity)
         else:
             raise ValueError(f"Unknown method: {self.method}")
         reduced = reducer.fit_transform(self.embeddings)
@@ -139,12 +143,12 @@ class EmbeddingSpacePlot(ContrastiveVisualizationComponent):
             scatter = plt.scatter(
                 reduced[:, 0], reduced[:, 1], c=self.labels, cmap="tab10", alpha=0.7
             )
-            plt.legend(*scatter.legend_elements(), title="Label")
+            plt.legend(*scatter.legend_elements(), title="CIFAR-10 Classes")
         else:
             plt.scatter(reduced[:, 0], reduced[:, 1], alpha=0.7)
-        plt.title(self.title)
-        plt.xlabel("Dim 1")
-        plt.ylabel("Dim 2")
+        plt.title(f"{self.title} ({self.method.upper()})")
+        plt.xlabel(f"{self.method.upper()} Component 1")
+        plt.ylabel(f"{self.method.upper()} Component 2")
         plt.tight_layout()
         os.makedirs(os.path.dirname(path), exist_ok=True)
         plt.savefig(path)
