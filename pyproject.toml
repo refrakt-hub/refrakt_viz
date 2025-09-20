@@ -28,5 +28,8 @@ dev = [
     "lizard>=1.17.10"
 ] 
 
+[tool.setuptools.packages.find]
+where = ["src"]
+
 [tool.isort]
 profile = "black" 
